@@ -1,4 +1,4 @@
-module POC_Unity_Websocket
+module Unity_Websocket
 
 go 1.21
 

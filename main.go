@@ -1,7 +1,7 @@
 package main
 
 import (
-	"POC_Unity_Websocket/Client"
+	"Unity_Websocket/Client"
 	"log"
 	"net/http"
 )

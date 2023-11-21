@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/POC_Unity_Websocket.iml" filepath="$PROJECT_DIR$/.idea/POC_Unity_Websocket.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Unity_Websocket.iml" filepath="$PROJECT_DIR$/.idea/Unity_Websocket.iml" />
     </modules>
   </component>
 </project>

@@ -1,5 +1,5 @@
 package Manage
 
-type Player struct {
-	Id string `json:"id"`
-}
+// Design Player Struct
+//and Method for manage player (optional)
+//json format
