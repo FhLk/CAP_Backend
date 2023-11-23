@@ -1,11 +1,13 @@
 package Client
 
 import (
-	"Unity_Websocket/HandleMessage"
-	"github.com/gorilla/websocket"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -60,7 +62,7 @@ func (s *Subscription) readPump() {
 			}
 			break
 		}
-		HandleMessage.HandleLobby(c, messageType, msg, s)
+		HandleLobby(c, messageType, msg, s)
 	}
 }
 func (s *Subscription) writePump() {
@@ -108,4 +110,20 @@ func ServeWsLobby(w http.ResponseWriter, r *http.Request) {
 	H.register <- s
 	go s.writePump()
 	go s.readPump()
+}
+
+func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
+	if messageType == websocket.TextMessage {
+		var msg map[string]interface{}
+		if err := json.Unmarshal(messageByte, &msg); err != nil {
+			fmt.Println("Error parsing message:", err)
+			return
+		}
+
+		checkType := msg["type"].(string)
+		switch checkType {
+		case "(type_request)":
+			//Design follow planning
+		}
+	}
 }
