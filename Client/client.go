@@ -168,7 +168,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			fmt.Println("Request Join")
 			playerData, ok := msg["player"].(map[string]interface{})
 			if !ok {
-				// Respond with an error if the player information is missing or not a valid map
 				sendResponse(conn, ResponseJoinError, "Invalid player information")
 				return
 			}
@@ -180,7 +179,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
-				// Respond with an error if the lobbyID is missing or not a valid string
 				sendResponse(conn, ResponseJoinError, "Invalid lobbyID")
 				return
 			}
@@ -192,7 +190,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				return
 			}
 
-			// Broadcast the updated lobby information to all participants
 			response := map[string]interface{}{
 				"type":  ResponseJoinSuccess,
 				"lobby": lobby,

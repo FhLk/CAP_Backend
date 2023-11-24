@@ -13,7 +13,7 @@ type Lobby struct {
 	Players []Player `json:"players"`
 }
 
-var ActiveLobbies map[string]*Lobby
+var ActiveLobbies = make(map[string]*Lobby)
 
 func CreateLobby(host Player, lobbyID string) (*Lobby, error) {
 	newLobby, exists := ActiveLobbies[lobbyID]
