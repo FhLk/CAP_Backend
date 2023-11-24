@@ -4,7 +4,7 @@ package Manage
 //and Method for manage player (optional)
 //json format
 
-type player struct {
+type Player struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Color  string `json:"color"`

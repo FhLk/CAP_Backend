@@ -1,6 +1,8 @@
 package Client
 
 import (
+	"Unity_Websocket/Manage"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -112,9 +114,19 @@ func ServeWsLobby(w http.ResponseWriter, r *http.Request) {
 	go s.readPump()
 }
 
+const (
+	RequestCreate         = "00"
+	ResponseCreateSuccess = "01"
+	ResponseCreateError   = "02"
+	RequestJoin           = "10"
+	ResponseJoinSuccess   = "11"
+	ResponseJoinError     = "12"
+)
+
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
 	if messageType == websocket.TextMessage {
 		var msg map[string]interface{}
+		var newPlayer Manage.Player
 		if err := json.Unmarshal(messageByte, &msg); err != nil {
 			fmt.Println("Error parsing message:", err)
 			return
@@ -122,8 +134,99 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 		checkType := msg["type"].(string)
 		switch checkType {
-		case "(type_request)":
-			//Design follow planning
+		case RequestCreate:
+			// Design follows planning
+			fmt.Println("Request Create")
+			playerData, ok := msg["player"].(map[string]interface{})
+			if !ok {
+				// Respond with an error if the player information is missing or not a valid map
+				sendResponse(conn, ResponseCreateError, "Invalid player information")
+				return
+			}
+
+			newPlayer.ID = playerData["id"].(string)
+			newPlayer.Name = playerData["name"].(string)
+			newPlayer.Color = playerData["color"].(string)
+			newPlayer.Status = playerData["status"].(bool)
+
+			lobbyID, ok := msg["lobbyId"].(string)
+			if !ok {
+				// Respond with an error if the lobbyID is missing or not a valid string
+				sendResponse(conn, ResponseCreateError, "Invalid lobbyID")
+				return
+			}
+
+			lobby, err := Manage.CreateLobby(newPlayer, lobbyID)
+
+			if err != nil {
+				sendResponse(conn, ResponseCreateError, "Error creating lobby: "+err.Error())
+				return
+			}
+
+			sendResponse(conn, ResponseCreateSuccess, lobby)
+		case RequestJoin:
+			fmt.Println("Request Join")
+			playerData, ok := msg["player"].(map[string]interface{})
+			if !ok {
+				// Respond with an error if the player information is missing or not a valid map
+				sendResponse(conn, ResponseJoinError, "Invalid player information")
+				return
+			}
+
+			newPlayer.ID = playerData["id"].(string)
+			newPlayer.Name = playerData["name"].(string)
+			newPlayer.Color = playerData["color"].(string)
+			newPlayer.Status = playerData["status"].(bool)
+
+			lobbyID, ok := msg["lobbyId"].(string)
+			if !ok {
+				// Respond with an error if the lobbyID is missing or not a valid string
+				sendResponse(conn, ResponseJoinError, "Invalid lobbyID")
+				return
+			}
+
+			lobby, err := Manage.JoinLobby(newPlayer, lobbyID)
+
+			if err != nil {
+				sendResponse(conn, ResponseJoinError, "Error joining lobby: "+err.Error())
+				return
+			}
+
+			// Broadcast the updated lobby information to all participants
+			response := map[string]interface{}{
+				"type":  ResponseJoinSuccess,
+				"lobby": lobby,
+			}
+
+			sendResponse(conn, ResponseJoinSuccess, lobby)
+
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				fmt.Println("Error marshaling response:", err)
+				return
+			}
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
 		}
 	}
+}
+
+func sendResponse(conn *Connection, responseType string, data interface{}) {
+	response := map[string]interface{}{
+		"type": responseType,
+	}
+
+	if data != nil {
+		response["data"] = data
+	}
+
+	responseBytes, err := json.Marshal(response)
+	if err != nil {
+		fmt.Println("Error marshaling response:", err)
+		return
+	}
+
+	conn.send <- responseBytes
 }
