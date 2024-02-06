@@ -121,6 +121,9 @@ const (
 	RequestJoin           = "10"
 	ResponseJoinSuccess   = "11"
 	ResponseJoinError     = "12"
+	RequestFind           = "20"
+	ResponseFindSuccess   = "21"
+	ResponseFindError     = "22"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
@@ -206,6 +209,21 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
 			H.broadcast <- message
+		case RequestFind:
+			fmt.Println("Request Find")
+			lobbyID, ok := msg["lobbyId"].(string)
+			if !ok {
+				sendResponse(conn, ResponseFindError, "Invalid lobbyID")
+				return
+			}
+
+			response, err := Manage.FindLobby(lobbyID)
+			if err != nil {
+				sendResponse(conn, ResponseFindError, "Error finding lobby: "+err.Error())
+				return
+			}
+
+			sendResponse(conn, ResponseFindSuccess, response)
 		}
 	}
 }
@@ -226,4 +244,48 @@ func sendResponse(conn *Connection, responseType string, data interface{}) {
 	}
 
 	conn.send <- responseBytes
+}
+
+func HandlePlayerMove(playerIndex int, x, y int, gameState *Manage.Gamestate) {
+	// Get the current player
+	player := &gameState.Players[playerIndex]
+
+	// Check if the new position is within the bounds of the board
+	if x < 0 || x >= len(gameState.Board) || y < 0 || y >= len(gameState.Board[0]) {
+		fmt.Println("Invalid move: out of bounds")
+		return
+	}
+
+	// Check if the new position is blocked (e.g., by a wall or obstacle)
+	if gameState.Board[x][y].IsBlocked {
+		fmt.Println("Invalid move: position blocked")
+		return
+	}
+
+	// Update the player's position
+	player.PositionX = x
+	player.PositionY = y
+
+	// Check for item interactions at the new position
+	item := gameState.Board[x][y].Item
+	switch item.Type {
+	case "Health":
+		if player.Hearts < 3 {
+			player.Hearts++ // Increase player's hearts
+		}
+		fmt.Println("Player picked up a health item")
+	case "Shield":
+		player.Shield = 1 // Give player a shield
+		fmt.Println("Player picked up a shield item")
+	case "Bomb":
+		if player.Shield > 0 {
+			player.Shield-- // Reduce player's shield
+		} else {
+			player.Hearts-- // Reduce player's hearts if no shield
+		}
+		fmt.Println("Player encountered a bomb")
+	}
+
+	// Print updated player information
+	fmt.Printf("Player %s moved to (%d, %d). Hearts: %d, Shield: %d\n", player.ID, x, y, player.Hearts, player.Shield)
 }

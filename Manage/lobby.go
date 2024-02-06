@@ -4,6 +4,7 @@ package Manage
 //and Method for manage Lobby (Create and Join)
 //json format
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -71,4 +72,27 @@ func JoinLobby(newPlayer Player, lobbyID string) (*Lobby, error) {
 
 	lobby.Players = append(lobby.Players, newPlayer)
 	return lobby, nil
+}
+
+func FindLobby(lobbyID string) (string, error) {
+	lobbyMutex.Lock()
+	defer lobbyMutex.Unlock()
+
+	_, exists := ActiveLobbies[lobbyID]
+	if !exists {
+		fmt.Println("Lobby", lobbyID, "is not found")
+		response := map[string]bool{"found": false}
+		jsonData, err := json.Marshal(response)
+		if err != nil {
+			return "", err
+		}
+		return string(jsonData), nil
+	}
+
+	response := map[string]bool{"found": true}
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonData), nil
 }
