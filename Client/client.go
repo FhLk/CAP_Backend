@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -124,6 +125,10 @@ const (
 	RequestFind           = "20"
 	ResponseFindSuccess   = "21"
 	ResponseFindError     = "22"
+	PlayerAction          = "30"
+	PlayerActionError     = "31"
+	RollDice              = "40"
+	RollDiceResponse      = "41"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
@@ -151,6 +156,8 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			newPlayer.Name = playerData["name"].(string)
 			newPlayer.Color = playerData["color"].(string)
 			newPlayer.Status = playerData["status"].(bool)
+			newPlayer.Hearts = playerData["hearts"].(int)
+			newPlayer.Shield = playerData["shield"].(int)
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -179,6 +186,8 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			newPlayer.Name = playerData["name"].(string)
 			newPlayer.Color = playerData["color"].(string)
 			newPlayer.Status = playerData["status"].(bool)
+			newPlayer.Hearts = playerData["hearts"].(int)
+			newPlayer.Shield = playerData["shield"].(int)
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -224,6 +233,50 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			}
 
 			sendResponse(conn, ResponseFindSuccess, response)
+		case PlayerAction: // New case for player action
+			fmt.Println("Player Action")
+			playerIndex, ok := msg["playerIndex"].(int)
+			if !ok {
+				sendResponse(conn, PlayerActionError, "Invalid player index")
+				return
+			}
+
+			x, ok := msg["x"].(int)
+			if !ok {
+				sendResponse(conn, PlayerActionError, "Invalid x coordinate")
+				return
+			}
+
+			y, ok := msg["y"].(int)
+			if !ok {
+				sendResponse(conn, PlayerActionError, "Invalid y coordinate")
+				return
+			}
+
+			// Call HandlePlayerAction function with the provided parameters
+			HandlePlayerAction(playerIndex, x, y, &Manage.Gamestate{})
+		case RollDice:
+			randomNumber := rand.Intn(6) + 1
+			fmt.Println("Player rolled the dice:", randomNumber)
+
+			// Prepare the response data
+			response := map[string]interface{}{
+				"type": RollDiceResponse,
+				"data": randomNumber,
+			}
+
+			// Marshal the response data
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				fmt.Println("Error marshaling response:", err)
+				return
+			}
+
+			// Create a message with the room identifier as "gameState" and the JSON data
+			message := message{Room: "gameState", Data: responseBytes}
+
+			// Broadcast the message to all connected clients
+			H.broadcast <- message
 		}
 	}
 }
@@ -246,37 +299,39 @@ func sendResponse(conn *Connection, responseType string, data interface{}) {
 	conn.send <- responseBytes
 }
 
-func HandlePlayerMove(playerIndex int, x, y int, gameState *Manage.Gamestate) {
+func HandlePlayerAction(playerIndex int, x, y int, gameState *Manage.Gamestate) {
 	// Get the current player
 	player := &gameState.Players[playerIndex]
 
 	// Check if the new position is within the bounds of the board
 	if x < 0 || x >= len(gameState.Board) || y < 0 || y >= len(gameState.Board[0]) {
-		fmt.Println("Invalid move: out of bounds")
+		fmt.Println("Invalid click: out of bounds")
 		return
 	}
 
-	// Check if the new position is blocked (e.g., by a wall or obstacle)
+	// Check if the cell is blocked (e.g., by a wall or obstacle)
 	if gameState.Board[x][y].IsBlocked {
-		fmt.Println("Invalid move: position blocked")
+		fmt.Println("Invalid click: position blocked")
 		return
 	}
 
-	// Update the player's position
-	player.PositionX = x
-	player.PositionY = y
-
-	// Check for item interactions at the new position
+	// Perform action based on the cell's content
 	item := gameState.Board[x][y].Item
 	switch item.Type {
 	case "Health":
 		if player.Hearts < 3 {
 			player.Hearts++ // Increase player's hearts
+			fmt.Println("Player picked up a health item")
+		} else {
+			fmt.Println("Player's hearts are already at maximum")
 		}
-		fmt.Println("Player picked up a health item")
 	case "Shield":
-		player.Shield = 1 // Give player a shield
-		fmt.Println("Player picked up a shield item")
+		if player.Hearts < 1 {
+			player.Shield++ // Give player a shield
+			fmt.Println("Player picked up a shield item")
+		} else {
+			fmt.Println("Player already has a shield")
+		}
 	case "Bomb":
 		if player.Shield > 0 {
 			player.Shield-- // Reduce player's shield
@@ -284,8 +339,25 @@ func HandlePlayerMove(playerIndex int, x, y int, gameState *Manage.Gamestate) {
 			player.Hearts-- // Reduce player's hearts if no shield
 		}
 		fmt.Println("Player encountered a bomb")
+	default:
+		fmt.Println("Player clicked an empty cell")
 	}
 
 	// Print updated player information
 	fmt.Printf("Player %s moved to (%d, %d). Hearts: %d, Shield: %d\n", player.ID, x, y, player.Hearts, player.Shield)
+
+	// Broadcast the updated game state to all connected clients
+
+	// Convert game state to JSON
+	jsonData, err := json.Marshal(gameState)
+	if err != nil {
+		fmt.Println("Error marshaling game state:", err)
+		return
+	}
+
+	// Create a message with the room identifier as "gameState" and the JSON data
+	message := message{Room: "gameState", Data: jsonData}
+
+	// Broadcast the message to all connected clients
+	H.broadcast <- message
 }

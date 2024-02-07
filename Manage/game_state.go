@@ -20,7 +20,4 @@ type Item struct {
 		Row int `json:"row"`
 		Col int `json:"col"`
 	}
-	Value    int `json:"value,omitempty"`    // Value for health item
-	Duration int `json:"duration,omitempty"` // Duration for shield item
-	Damage   int `json:"damage,omitempty"`
 }
