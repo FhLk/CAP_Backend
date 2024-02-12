@@ -1,11 +1,9 @@
 package Manage
 
 type Gamestate struct {
-	Board       [][]Block `json:"board"`
-	PlayerTurn  int       `json:"player_turn"`
-	Players     []Player  `json:"players"`
-	CurrentDice int       `json:"current_dice"`
-	DiceRolled  bool      `json:"dice_rolled"`
+	Board      [][]Block `json:"board"`
+	PlayerTurn int       `json:"player_turn"`
+	Players    []Player  `json:"players"`
 }
 
 type Block struct {

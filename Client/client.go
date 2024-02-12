@@ -116,25 +116,30 @@ func ServeWsLobby(w http.ResponseWriter, r *http.Request) {
 }
 
 const (
-	RequestCreate         = "00"
-	ResponseCreateSuccess = "01"
-	ResponseCreateError   = "02"
-	RequestJoin           = "10"
-	ResponseJoinSuccess   = "11"
-	ResponseJoinError     = "12"
-	RequestFind           = "20"
-	ResponseFindSuccess   = "21"
-	ResponseFindError     = "22"
-	PlayerAction          = "30"
-	PlayerActionError     = "31"
-	RollDice              = "40"
-	RollDiceResponse      = "41"
+	RequestCreate              = "00"
+	ResponseCreateSuccess      = "01"
+	ResponseCreateError        = "02"
+	RequestJoin                = "10"
+	ResponseJoinSuccess        = "11"
+	ResponseJoinError          = "12"
+	RequestFind                = "20"
+	ResponseFindSuccess        = "21"
+	ResponseFindError          = "22"
+	PlayerAction               = "30"
+	PlayerActionSuccess        = "31"
+	PlayerActionError          = "32"
+	RollDice                   = "40"
+	RollDiceResponse           = "41"
+	RequestBoardUpdate         = "50"
+	ResponseBoardUpdateSuccess = "51"
+	ResponseBoardUpdateError   = "52"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
 	if messageType == websocket.TextMessage {
 		var msg map[string]interface{}
 		var newPlayer Manage.Player
+		var gameState Manage.Gamestate
 		if err := json.Unmarshal(messageByte, &msg); err != nil {
 			fmt.Println("Error parsing message:", err)
 			return
@@ -253,7 +258,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				return
 			}
 
-			// Call HandlePlayerAction function with the provided parameters
 			HandlePlayerAction(playerIndex, x, y, &Manage.Gamestate{})
 		case RollDice:
 			randomNumber := rand.Intn(6) + 1
@@ -277,6 +281,26 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			// Broadcast the message to all connected clients
 			H.broadcast <- message
+		case RequestBoardUpdate:
+			fmt.Println("Request Board Update")
+			var updatedGameState Manage.Gamestate
+			if err := json.Unmarshal(messageByte, &updatedGameState); err != nil {
+				fmt.Println("Error parsing updated game state:", err)
+				return
+			}
+
+			// Update the server's game state with the received board
+			gameState.Board = updatedGameState.Board
+			gameState.PlayerTurn = updatedGameState.PlayerTurn
+			gameState.Players = updatedGameState.Players
+
+			gamestate, err := json.Marshal(gameState)
+			if err != nil {
+				fmt.Println("Error marshaling game state:", err)
+				return
+			}
+
+			sendResponse(conn, ResponseBoardUpdateSuccess, gamestate)
 		}
 	}
 }
@@ -349,15 +373,18 @@ func HandlePlayerAction(playerIndex int, x, y int, gameState *Manage.Gamestate) 
 	// Broadcast the updated game state to all connected clients
 
 	// Convert game state to JSON
-	jsonData, err := json.Marshal(gameState)
+	gamestate, err := json.Marshal(gameState)
 	if err != nil {
 		fmt.Println("Error marshaling game state:", err)
 		return
 	}
 
+	sendResponse(&Connection{}, "Response Gamestate", gamestate)
+
 	// Create a message with the room identifier as "gameState" and the JSON data
-	message := message{Room: "gameState", Data: jsonData}
+	message := message{Room: "gameState", Data: gamestate}
 
 	// Broadcast the message to all connected clients
 	H.broadcast <- message
+
 }
