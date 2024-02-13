@@ -2,11 +2,10 @@ package main
 
 import (
 	"Unity_Websocket/Client"
-	"Unity_Websocket/Manage"
+	// "Unity_Websocket/Manage"
 	"log"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
+	// "github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -17,12 +16,12 @@ func main() {
 		Client.ServeWsLobby(w, r)
 	})
 
-	r := gin.Default()
+	// r := gin.Default()
 
-	r.GET("/lobbyid", func(c *gin.Context) {
-		lobbyID := Manage.GenerateRandomID()
-		c.JSON(http.StatusOK, gin.H{"randomID": lobbyID})
-	})
+	// r.GET("/lobbyid", func(c *gin.Context) {
+	// 	lobbyID := Manage.GenerateRandomID()
+	// 	c.JSON(http.StatusOK, gin.H{"randomID": lobbyID})
+	// })
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

@@ -7,15 +7,14 @@ type Gamestate struct {
 }
 
 type Block struct {
-	IsBlocked bool  // Indicates if the block is blocked (e.g., by a wall or obstacle)
-	Item      *Item // Represents the item contained in the block, if any
+	IsBlocked bool  `json:"is_blocked"`
+	Item      *Item `json:"item"`
 }
 
 type Item struct {
-	Type string `json:"type"`
-	// Additional fields based on your game's requirements
+	Type     string `json:"type"`
 	Position struct {
 		Row int `json:"row"`
 		Col int `json:"col"`
-	}
+	} `json:"position"`
 }

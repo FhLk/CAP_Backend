@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"time"
 
@@ -25,7 +24,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize = 512
+	maxMessageSize = 4096
 )
 
 var (
@@ -33,8 +32,8 @@ var (
 	space   = []byte{' '}
 )
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
@@ -47,6 +46,11 @@ type Connection struct {
 	ws   *websocket.Conn
 	send chan []byte
 }
+
+//	type GameContext struct {
+//		GameState Manage.Gamestate
+//	}
+var gameState Manage.Gamestate
 
 func (s *Subscription) readPump() {
 	c := s.conn
@@ -65,6 +69,12 @@ func (s *Subscription) readPump() {
 			}
 			break
 		}
+
+		// var data map[string]interface{}
+		// if err := json.Unmarshal(msg, &data); err != nil {
+		// 	log.Printf("error decoding message: %v", err)
+		// 	continue
+		// }
 		HandleLobby(c, messageType, msg, s)
 	}
 }
@@ -139,7 +149,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 	if messageType == websocket.TextMessage {
 		var msg map[string]interface{}
 		var newPlayer Manage.Player
-		var gameState Manage.Gamestate
+		// var gameState GameContext
 		if err := json.Unmarshal(messageByte, &msg); err != nil {
 			fmt.Println("Error parsing message:", err)
 			return
@@ -161,8 +171,21 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			newPlayer.Name = playerData["name"].(string)
 			newPlayer.Color = playerData["color"].(string)
 			newPlayer.Status = playerData["status"].(bool)
-			newPlayer.Hearts = playerData["hearts"].(int)
-			newPlayer.Shield = playerData["shield"].(int)
+			hearts, ok := playerData["hearts"].(float64)
+			if !ok {
+				// Respond with an error if hearts field is missing or not a valid float64
+				sendResponse(conn, ResponseCreateError, "Invalid hearts value")
+				return
+			}
+			newPlayer.Hearts = int(hearts)
+
+			shield, ok := playerData["shield"].(float64)
+			if !ok {
+				// Respond with an error if shield field is missing or not a valid float64
+				sendResponse(conn, ResponseCreateError, "Invalid shield value")
+				return
+			}
+			newPlayer.Shield = int(shield)
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -191,8 +214,21 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			newPlayer.Name = playerData["name"].(string)
 			newPlayer.Color = playerData["color"].(string)
 			newPlayer.Status = playerData["status"].(bool)
-			newPlayer.Hearts = playerData["hearts"].(int)
-			newPlayer.Shield = playerData["shield"].(int)
+			hearts, ok := playerData["hearts"].(float64)
+			if !ok {
+				// Respond with an error if hearts field is missing or not a valid float64
+				sendResponse(conn, ResponseCreateError, "Invalid hearts value")
+				return
+			}
+			newPlayer.Hearts = int(hearts)
+
+			shield, ok := playerData["shield"].(float64)
+			if !ok {
+				// Respond with an error if shield field is missing or not a valid float64
+				sendResponse(conn, ResponseCreateError, "Invalid shield value")
+				return
+			}
+			newPlayer.Shield = int(shield)
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -208,7 +244,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			}
 
 			response := map[string]interface{}{
-				"type":  ResponseJoinSuccess,
 				"lobby": lobby,
 			}
 
@@ -238,35 +273,75 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			}
 
 			sendResponse(conn, ResponseFindSuccess, response)
+		case RequestBoardUpdate:
+			fmt.Println("Request Board Update")
+			var gameStateData Manage.Gamestate
+			if err := json.Unmarshal(messageByte, &gameStateData); err != nil {
+				fmt.Println("Error parsing updated game state:", err)
+				return
+			}
+
+			// Update the server's game state with the received board
+			gameState.Board = gameStateData.Board
+			gameState.PlayerTurn = gameStateData.PlayerTurn
+			gameState.Players = gameStateData.Players
+
+			// gamestate, err := json.Marshal(gameState)
+			// if err != nil {
+			// 	fmt.Println("Error marshaling game state:", err)
+			// 	return
+			// }
+			// gamestate := &Manage.Gamestate{
+			// 	Board:      gameState.Board,
+			// 	PlayerTurn: gameState.PlayerTurn,
+			// 	Players:    gameState.Players,
+			// }
+
+			sendResponse(conn, ResponseBoardUpdateSuccess, gameState)
 		case PlayerAction: // New case for player action
 			fmt.Println("Player Action")
-			playerIndex, ok := msg["playerIndex"].(int)
+			playerIndexFloat, ok := msg["playerIndex"].(float64)
 			if !ok {
 				sendResponse(conn, PlayerActionError, "Invalid player index")
 				return
 			}
+			playerIndex := int(playerIndexFloat)
 
-			x, ok := msg["x"].(int)
+			xFloat, ok := msg["x"].(float64)
 			if !ok {
 				sendResponse(conn, PlayerActionError, "Invalid x coordinate")
 				return
 			}
+			x := int(xFloat)
 
-			y, ok := msg["y"].(int)
+			yFloat, ok := msg["y"].(float64)
 			if !ok {
 				sendResponse(conn, PlayerActionError, "Invalid y coordinate")
 				return
 			}
+			y := int(yFloat)
+			fmt.Println(gameState)
 
-			HandlePlayerAction(playerIndex, x, y, &Manage.Gamestate{})
+			// response := map[string]interface{}{
+			// 	"playerIndex": msg["playerIndex"],
+			// 	"x":           msg["x"],
+			// 	"y":           msg["y"],
+			// }
+
+			// responseBytes, err := json.Marshal(response)
+			// if err != nil {
+			// 	fmt.Println("Error marshaling response:", err)
+			// 	return
+			// }
+			// responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			// message := message{s.room, responseBytes}
+			// H.broadcast <- message
+
+			HandlePlayerAction(playerIndex, x, y, gameState, conn, s)
 		case RollDice:
-			randomNumber := rand.Intn(6) + 1
-			fmt.Println("Player rolled the dice:", randomNumber)
-
-			// Prepare the response data
 			response := map[string]interface{}{
-				"type": RollDiceResponse,
-				"data": randomNumber,
+				"type":        RollDiceResponse,
+				"Dice Number": msg["Dice Number"], // Use the received dice number from the message
 			}
 
 			// Marshal the response data
@@ -276,31 +351,10 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				return
 			}
 
-			// Create a message with the room identifier as "gameState" and the JSON data
-			message := message{Room: "gameState", Data: responseBytes}
-
-			// Broadcast the message to all connected clients
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
 			H.broadcast <- message
-		case RequestBoardUpdate:
-			fmt.Println("Request Board Update")
-			var updatedGameState Manage.Gamestate
-			if err := json.Unmarshal(messageByte, &updatedGameState); err != nil {
-				fmt.Println("Error parsing updated game state:", err)
-				return
-			}
 
-			// Update the server's game state with the received board
-			gameState.Board = updatedGameState.Board
-			gameState.PlayerTurn = updatedGameState.PlayerTurn
-			gameState.Players = updatedGameState.Players
-
-			gamestate, err := json.Marshal(gameState)
-			if err != nil {
-				fmt.Println("Error marshaling game state:", err)
-				return
-			}
-
-			sendResponse(conn, ResponseBoardUpdateSuccess, gamestate)
 		}
 	}
 }
@@ -323,9 +377,9 @@ func sendResponse(conn *Connection, responseType string, data interface{}) {
 	conn.send <- responseBytes
 }
 
-func HandlePlayerAction(playerIndex int, x, y int, gameState *Manage.Gamestate) {
+func HandlePlayerAction(playerIndex int, x, y int, gameState Manage.Gamestate, conn *Connection, s *Subscription) {
 	// Get the current player
-	player := &gameState.Players[playerIndex]
+	player := gameState.Players[playerIndex]
 
 	// Check if the new position is within the bounds of the board
 	if x < 0 || x >= len(gameState.Board) || y < 0 || y >= len(gameState.Board[0]) {
@@ -342,49 +396,69 @@ func HandlePlayerAction(playerIndex int, x, y int, gameState *Manage.Gamestate) 
 	// Perform action based on the cell's content
 	item := gameState.Board[x][y].Item
 	switch item.Type {
-	case "Health":
+	case "Heart":
+		sendActionBroadcast(conn, s, playerIndex, x, y, "picked up a heart item")
 		if player.Hearts < 3 {
-			player.Hearts++ // Increase player's hearts
-			fmt.Println("Player picked up a health item")
+			player.Hearts++
+			fmt.Println("Player picked up a heart item")
+
+			sendActionBroadcast(conn, s, playerIndex, x, y, "heart++")
 		} else {
 			fmt.Println("Player's hearts are already at maximum")
+
+			sendActionBroadcast(conn, s, playerIndex, x, y, "max")
 		}
 	case "Shield":
+		sendActionBroadcast(conn, s, playerIndex, x, y, "picked up a shield item")
 		if player.Hearts < 1 {
-			player.Shield++ // Give player a shield
+			player.Hearts++
 			fmt.Println("Player picked up a shield item")
+
+			sendActionBroadcast(conn, s, playerIndex, x, y, "shield++")
 		} else {
 			fmt.Println("Player already has a shield")
+
+			sendActionBroadcast(conn, s, playerIndex, x, y, "max")
 		}
 	case "Bomb":
+		sendActionBroadcast(conn, s, playerIndex, x, y, "encountered a bomb")
 		if player.Shield > 0 {
-			player.Shield-- // Reduce player's shield
+			player.Shield--
+
+			sendActionBroadcast(conn, s, playerIndex, x, y, "shield--")
 		} else {
-			player.Hearts-- // Reduce player's hearts if no shield
+			player.Hearts--
+
+			sendActionBroadcast(conn, s, playerIndex, x, y, "heart--")
 		}
 		fmt.Println("Player encountered a bomb")
+
 	default:
 		fmt.Println("Player clicked an empty cell")
+
+		sendActionBroadcast(conn, s, playerIndex, x, y, "clicked an empty cell")
 	}
 
 	// Print updated player information
 	fmt.Printf("Player %s moved to (%d, %d). Hearts: %d, Shield: %d\n", player.ID, x, y, player.Hearts, player.Shield)
 
-	// Broadcast the updated game state to all connected clients
+}
 
-	// Convert game state to JSON
-	gamestate, err := json.Marshal(gameState)
+func sendActionBroadcast(conn *Connection, s *Subscription, playerIndex int, x, y int, action string) {
+	response := map[string]interface{}{
+		"action":      action,
+		"playerIndex": playerIndex,
+		"x":           x,
+		"y":           y,
+	}
+
+	responseBytes, err := json.Marshal(response)
 	if err != nil {
-		fmt.Println("Error marshaling game state:", err)
+		fmt.Println("Error marshaling response:", err)
 		return
 	}
 
-	sendResponse(&Connection{}, "Response Gamestate", gamestate)
-
-	// Create a message with the room identifier as "gameState" and the JSON data
-	message := message{Room: "gameState", Data: gamestate}
-
-	// Broadcast the message to all connected clients
+	responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+	message := message{s.room, responseBytes}
 	H.broadcast <- message
-
 }
