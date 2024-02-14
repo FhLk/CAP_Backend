@@ -1,16 +1,9 @@
 package Client
 
-// Hub maintains the set of active clients and broadcasts messages to the
 type Hub struct {
-	// put registered clients into the room.
-	rooms map[string]map[*Connection]bool
-	// Inbound messages from the clients.
-	broadcast chan message
-
-	// Register requests from the clients.
-	register chan Subscription
-
-	// Unregister requests from clients.
+	rooms      map[string]map[*Connection]bool
+	broadcast  chan message
+	register   chan Subscription
 	unregister chan Subscription
 }
 

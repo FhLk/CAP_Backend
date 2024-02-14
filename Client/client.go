@@ -13,17 +13,9 @@ import (
 )
 
 const (
-
-	// Time allowed to write a message to the peer.
-	writeWait = 10 * time.Second
-
-	// Time allowed to read the next pong message from the peer.
-	pongWait = 60 * time.Second
-
-	// Send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = (pongWait * 9) / 10
-
-	// Maximum message size allowed from peer.
+	writeWait      = 10 * time.Second
+	pongWait       = 60 * time.Second
+	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 4096
 )
 
@@ -47,9 +39,6 @@ type Connection struct {
 	send chan []byte
 }
 
-//	type GameContext struct {
-//		GameState Manage.Gamestate
-//	}
 var gameState Manage.Gamestate
 
 func (s *Subscription) readPump() {
@@ -70,11 +59,6 @@ func (s *Subscription) readPump() {
 			break
 		}
 
-		// var data map[string]interface{}
-		// if err := json.Unmarshal(msg, &data); err != nil {
-		// 	log.Printf("error decoding message: %v", err)
-		// 	continue
-		// }
 		HandleLobby(c, messageType, msg, s)
 	}
 }
@@ -149,7 +133,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 	if messageType == websocket.TextMessage {
 		var msg map[string]interface{}
 		var newPlayer Manage.Player
-		// var gameState GameContext
+
 		if err := json.Unmarshal(messageByte, &msg); err != nil {
 			fmt.Println("Error parsing message:", err)
 			return
@@ -158,11 +142,9 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 		checkType := msg["type"].(string)
 		switch checkType {
 		case RequestCreate:
-			// Design follows planning
 			fmt.Println("Request Create")
 			playerData, ok := msg["player"].(map[string]interface{})
 			if !ok {
-				// Respond with an error if the player information is missing or not a valid map
 				sendResponse(conn, ResponseCreateError, "Invalid player information")
 				return
 			}
@@ -175,7 +157,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
-				// Respond with an error if the lobbyID is missing or not a valid string
 				sendResponse(conn, ResponseCreateError, "Invalid lobbyID")
 				return
 			}
@@ -253,13 +234,12 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				return
 			}
 
-			// Update the server's game state with the received board
 			gameState.Board = gameStateData.Board
 			gameState.PlayerTurn = gameStateData.PlayerTurn
 			gameState.Players = gameStateData.Players
 
 			sendResponse(conn, ResponseBoardUpdateSuccess, gameState)
-		case PlayerAction: // New case for player action
+		case PlayerAction:
 			fmt.Println("Player Action")
 			playerIndexFloat, ok := msg["playerIndex"].(float64)
 			if !ok {
@@ -287,10 +267,9 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 		case RollDice:
 			response := map[string]interface{}{
 				"type":        RollDiceResponse,
-				"Dice Number": msg["Dice Number"], // Use the received dice number from the message
+				"Dice Number": msg["Dice Number"],
 			}
 
-			// Marshal the response data
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				fmt.Println("Error marshaling response:", err)
@@ -324,22 +303,18 @@ func sendResponse(conn *Connection, responseType string, data interface{}) {
 }
 
 func HandlePlayerAction(playerIndex int, x, y int, gameState Manage.Gamestate, conn *Connection, s *Subscription) {
-	// Get the current player
 	player := gameState.Players[playerIndex]
 
-	// Check if the new position is within the bounds of the board
 	if x < 0 || x >= len(gameState.Board) || y < 0 || y >= len(gameState.Board[0]) {
 		fmt.Println("Invalid click: out of bounds")
 		return
 	}
 
-	// Check if the cell is blocked (e.g., by a wall or obstacle)
 	if gameState.Board[x][y].IsBlocked {
 		fmt.Println("Invalid click: position blocked")
 		return
 	}
 
-	// Perform action based on the cell's content
 	item := gameState.Board[x][y].Item
 	switch item.Type {
 	case "Heart":
@@ -385,7 +360,6 @@ func HandlePlayerAction(playerIndex int, x, y int, gameState Manage.Gamestate, c
 		sendActionBroadcast(conn, s, playerIndex, x, y, "clicked an empty cell")
 	}
 
-	// Print updated player information
 	fmt.Printf("Player %s moved to (%d, %d). Hearts: %d, Shield: %d\n", player.ID, x, y, player.Hearts, player.Shield)
 
 }
