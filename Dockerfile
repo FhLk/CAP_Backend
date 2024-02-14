@@ -12,7 +12,6 @@ FROM golang:1.18 AS runner
 
 
 COPY --from=builder /go/src/app/main .
-COPY --from=builder /go/src/app/.env .
 
 CMD ["./main"]
 
