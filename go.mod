@@ -1,6 +1,6 @@
 module Unity_Websocket
 
-go 1.21
+go 1.18
 
 // github.com/gin-gonic/gin v1.9.1
 require github.com/gorilla/websocket v1.5.0
