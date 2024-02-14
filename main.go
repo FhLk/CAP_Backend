@@ -23,5 +23,5 @@ func main() {
 	// 	c.JSON(http.StatusOK, gin.H{"randomID": lobbyID})
 	// })
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":80", nil))
 }
