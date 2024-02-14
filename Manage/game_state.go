@@ -12,9 +12,5 @@ type Block struct {
 }
 
 type Item struct {
-	Type     string `json:"type"`
-	Position struct {
-		Row int `json:"row"`
-		Col int `json:"col"`
-	} `json:"position"`
+	Type string `json:"type"`
 }

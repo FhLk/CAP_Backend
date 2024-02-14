@@ -169,23 +169,9 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			newPlayer.ID = playerData["id"].(string)
 			newPlayer.Name = playerData["name"].(string)
-			newPlayer.Color = playerData["color"].(string)
-			newPlayer.Status = playerData["status"].(bool)
-			hearts, ok := playerData["hearts"].(float64)
-			if !ok {
-				// Respond with an error if hearts field is missing or not a valid float64
-				sendResponse(conn, ResponseCreateError, "Invalid hearts value")
-				return
-			}
-			newPlayer.Hearts = int(hearts)
-
-			shield, ok := playerData["shield"].(float64)
-			if !ok {
-				// Respond with an error if shield field is missing or not a valid float64
-				sendResponse(conn, ResponseCreateError, "Invalid shield value")
-				return
-			}
-			newPlayer.Shield = int(shield)
+			newPlayer.Pending = playerData["pending"].(bool)
+			newPlayer.Hearts = 3
+			newPlayer.Shield = 0
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -212,23 +198,9 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			newPlayer.ID = playerData["id"].(string)
 			newPlayer.Name = playerData["name"].(string)
-			newPlayer.Color = playerData["color"].(string)
-			newPlayer.Status = playerData["status"].(bool)
-			hearts, ok := playerData["hearts"].(float64)
-			if !ok {
-				// Respond with an error if hearts field is missing or not a valid float64
-				sendResponse(conn, ResponseCreateError, "Invalid hearts value")
-				return
-			}
-			newPlayer.Hearts = int(hearts)
-
-			shield, ok := playerData["shield"].(float64)
-			if !ok {
-				// Respond with an error if shield field is missing or not a valid float64
-				sendResponse(conn, ResponseCreateError, "Invalid shield value")
-				return
-			}
-			newPlayer.Shield = int(shield)
+			newPlayer.Pending = playerData["pending"].(bool)
+			newPlayer.Hearts = 3
+			newPlayer.Shield = 0
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -286,17 +258,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			gameState.PlayerTurn = gameStateData.PlayerTurn
 			gameState.Players = gameStateData.Players
 
-			// gamestate, err := json.Marshal(gameState)
-			// if err != nil {
-			// 	fmt.Println("Error marshaling game state:", err)
-			// 	return
-			// }
-			// gamestate := &Manage.Gamestate{
-			// 	Board:      gameState.Board,
-			// 	PlayerTurn: gameState.PlayerTurn,
-			// 	Players:    gameState.Players,
-			// }
-
 			sendResponse(conn, ResponseBoardUpdateSuccess, gameState)
 		case PlayerAction: // New case for player action
 			fmt.Println("Player Action")
@@ -321,21 +282,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			}
 			y := int(yFloat)
 			fmt.Println(gameState)
-
-			// response := map[string]interface{}{
-			// 	"playerIndex": msg["playerIndex"],
-			// 	"x":           msg["x"],
-			// 	"y":           msg["y"],
-			// }
-
-			// responseBytes, err := json.Marshal(response)
-			// if err != nil {
-			// 	fmt.Println("Error marshaling response:", err)
-			// 	return
-			// }
-			// responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
-			// message := message{s.room, responseBytes}
-			// H.broadcast <- message
 
 			HandlePlayerAction(playerIndex, x, y, gameState, conn, s)
 		case RollDice:
