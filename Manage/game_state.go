@@ -2,13 +2,13 @@ package Manage
 
 type Gamestate struct {
 	Board      [][]Block `json:"board"`
-	PlayerTurn int       `json:"player_turn"`
+	PlayerTurn int       `json:"turn"`
 	Players    []Player  `json:"players"`
 }
 
 type Block struct {
-	IsBlocked bool  `json:"is_blocked"`
-	Item      *Item `json:"item"`
+	Destroy bool  `json:"destroy"`
+	Item    *Item `json:"item"`
 }
 
 type Item struct {
