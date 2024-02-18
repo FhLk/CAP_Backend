@@ -130,6 +130,9 @@ const (
 	RequestStartGame           = "60"
 	ResponseStartGameSuccess   = "61"
 	ResponseStartGameError     = "62"
+	RequestNextPlayer          = "70"
+	ResponseNextPlayerSuccess  = "71"
+	ResponseNextPlayerError    = "72"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
@@ -239,7 +242,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			}
 
 			gameState.Board = gameStateData.Board
-			gameState.PlayerTurn = gameStateData.PlayerTurn
+			gameState.Round = gameStateData.Round
 			gameState.Players = gameStateData.Players
 
 			sendResponse(conn, ResponseBoardUpdateSuccess, gameState)
@@ -290,10 +293,41 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				"message": "Game starting",
 			}
 
-			// Marshal the response data
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				sendResponse(conn, ResponseStartGameError, "Error Start Game Lobby: "+err.Error())
+				return
+			}
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
+		case RequestNextPlayer:
+			fmt.Println("Request Next Player")
+			playerIndex, ok := msg["playerIndex"].(float64)
+			round, ok := msg["round"].(float64)
+
+			if !ok {
+				sendResponse(conn, ResponseNextPlayerError, "Invalid player index")
+				return
+			}
+
+			if int(playerIndex) >= 1 {
+				playerIndex = playerIndex - 1
+			} else {
+				playerIndex = playerIndex + 1
+			}
+
+			response := map[string]interface{}{
+				"type":        ResponseNextPlayerSuccess,
+				"playerIndex": playerIndex,
+				"round":       round + 1,
+				"message":     "Next Player",
+			}
+
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				sendResponse(conn, ResponseNextPlayerError, "Error Change Player: "+err.Error())
 				return
 			}
 
