@@ -16,7 +16,7 @@ const (
 	writeWait      = 10 * time.Second
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 4096
+	maxMessageSize = 100000
 )
 
 var (
@@ -127,6 +127,12 @@ const (
 	RequestBoardUpdate         = "50"
 	ResponseBoardUpdateSuccess = "51"
 	ResponseBoardUpdateError   = "52"
+	RequestStartGame           = "60"
+	ResponseStartGameSuccess   = "61"
+	ResponseStartGameError     = "62"
+	RequestNextPlayer          = "70"
+	ResponseNextPlayerSuccess  = "71"
+	ResponseNextPlayerError    = "72"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
@@ -151,9 +157,9 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			newPlayer.ID = playerData["id"].(string)
 			newPlayer.Name = playerData["name"].(string)
-			newPlayer.Pending = playerData["pending"].(bool)
-			newPlayer.Hearts = 3
-			newPlayer.Shield = 0
+			//newPlayer.Pending = playerData["pending"].(bool)
+			//newPlayer.Hearts = 3
+			//newPlayer.Shield = 0
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -179,9 +185,9 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			newPlayer.ID = playerData["id"].(string)
 			newPlayer.Name = playerData["name"].(string)
-			newPlayer.Pending = playerData["pending"].(bool)
-			newPlayer.Hearts = 3
-			newPlayer.Shield = 0
+			//newPlayer.Pending = playerData["pending"].(bool)
+			//newPlayer.Hearts = 3
+			//newPlayer.Shield = 0
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -197,10 +203,11 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			}
 
 			response := map[string]interface{}{
+				"type":  ResponseJoinSuccess,
 				"lobby": lobby,
 			}
 
-			sendResponse(conn, ResponseJoinSuccess, lobby)
+			//sendResponse(conn, ResponseJoinSuccess, lobby)
 
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
@@ -235,7 +242,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			}
 
 			gameState.Board = gameStateData.Board
-			gameState.PlayerTurn = gameStateData.PlayerTurn
+			gameState.Round = gameStateData.Round
 			gameState.Players = gameStateData.Players
 
 			sendResponse(conn, ResponseBoardUpdateSuccess, gameState)
@@ -261,7 +268,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				return
 			}
 			y := int(yFloat)
-			fmt.Println(gameState)
 
 			HandlePlayerAction(playerIndex, x, y, gameState, conn, s)
 		case RollDice:
@@ -279,7 +285,55 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
 			H.broadcast <- message
+		case RequestStartGame:
+			fmt.Println("Request Start Game")
+			response := map[string]interface{}{
+				"type":    ResponseStartGameSuccess,
+				"game":    true,
+				"message": "Game starting",
+			}
 
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				sendResponse(conn, ResponseStartGameError, "Error Start Game Lobby: "+err.Error())
+				return
+			}
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
+		case RequestNextPlayer:
+			fmt.Println("Request Next Player")
+			playerIndex, ok := msg["playerIndex"].(float64)
+			round, ok := msg["round"].(float64)
+
+			if !ok {
+				sendResponse(conn, ResponseNextPlayerError, "Invalid player index")
+				return
+			}
+
+			if int(playerIndex) >= 1 {
+				playerIndex = playerIndex - 1
+			} else {
+				playerIndex = playerIndex + 1
+			}
+
+			response := map[string]interface{}{
+				"type":        ResponseNextPlayerSuccess,
+				"playerIndex": playerIndex,
+				"round":       round + 1,
+				"message":     "Next Player",
+			}
+
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				sendResponse(conn, ResponseNextPlayerError, "Error Change Player: "+err.Error())
+				return
+			}
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
 		}
 	}
 }
@@ -290,7 +344,7 @@ func sendResponse(conn *Connection, responseType string, data interface{}) {
 	}
 
 	if data != nil {
-		response["data"] = data
+		response["Lobby"] = data
 	}
 
 	responseBytes, err := json.Marshal(response)
@@ -310,7 +364,7 @@ func HandlePlayerAction(playerIndex int, x, y int, gameState Manage.Gamestate, c
 		return
 	}
 
-	if gameState.Board[x][y].IsBlocked {
+	if gameState.Board[x][y].Destroy {
 		fmt.Println("Invalid click: position blocked")
 		return
 	}
@@ -360,12 +414,13 @@ func HandlePlayerAction(playerIndex int, x, y int, gameState Manage.Gamestate, c
 		sendActionBroadcast(conn, s, playerIndex, x, y, "clicked an empty cell")
 	}
 
-	fmt.Printf("Player %s moved to (%d, %d). Hearts: %d, Shield: %d\n", player.ID, x, y, player.Hearts, player.Shield)
+	fmt.Printf("Player %s clicked to (%d, %d). Hearts: %d, Shield: %d\n", player.ID, x, y, player.Hearts, player.Shield)
 
 }
 
 func sendActionBroadcast(conn *Connection, s *Subscription, playerIndex int, x, y int, action string) {
 	response := map[string]interface{}{
+		"type":        PlayerActionSuccess,
 		"action":      action,
 		"playerIndex": playerIndex,
 		"x":           x,

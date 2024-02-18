@@ -1,7 +1,6 @@
 package Manage
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -71,25 +70,15 @@ func JoinLobby(newPlayer Player, lobbyID string) (*Lobby, error) {
 	return lobby, nil
 }
 
-func FindLobby(lobbyID string) (string, error) {
+func FindLobby(lobbyID string) (*Lobby, error) {
 	lobbyMutex.Lock()
 	defer lobbyMutex.Unlock()
 
-	_, exists := ActiveLobbies[lobbyID]
+	lobby, exists := ActiveLobbies[lobbyID]
 	if !exists {
 		fmt.Println("Lobby", lobbyID, "is not found")
-		response := map[string]bool{"found": false}
-		jsonData, err := json.Marshal(response)
-		if err != nil {
-			return "", err
-		}
-		return string(jsonData), nil
+		return nil, nil
 	}
 
-	response := map[string]bool{"found": true}
-	jsonData, err := json.Marshal(response)
-	if err != nil {
-		return "", err
-	}
-	return string(jsonData), nil
+	return lobby, nil
 }
