@@ -1,6 +1,7 @@
 package Client
 
 import (
+	"Unity_Websocket/Game"
 	"Unity_Websocket/Manage"
 	"bytes"
 	"encoding/json"
@@ -96,6 +97,7 @@ func ServeWsLobby(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	queryValues := r.URL.Query()
 	lobbyId := queryValues.Get("lobbyId")
+	fmt.Println(lobbyId + "wow")
 	if lobbyId == "" {
 		log.Println(err)
 	} else if err != nil {
@@ -110,6 +112,7 @@ func ServeWsLobby(w http.ResponseWriter, r *http.Request) {
 }
 
 const (
+	//In Lobby
 	RequestCreate              = "00"
 	ResponseCreateSuccess      = "01"
 	ResponseCreateError        = "02"
@@ -122,8 +125,6 @@ const (
 	PlayerAction               = "30"
 	PlayerActionSuccess        = "31"
 	PlayerActionError          = "32"
-	RollDice                   = "40"
-	RollDiceResponse           = "41"
 	RequestBoardUpdate         = "50"
 	ResponseBoardUpdateSuccess = "51"
 	ResponseBoardUpdateError   = "52"
@@ -133,13 +134,18 @@ const (
 	RequestNextPlayer          = "70"
 	ResponseNextPlayerSuccess  = "71"
 	ResponseNextPlayerError    = "72"
+	RequestEndGame             = "80"
+	ResponseEndGameSuccess     = "81"
+	ResponseEndGameError       = "82"
+	RequestRandom              = "90"
+	ResponseRandomSuccess      = "91"
+	ResponseRandomError        = "92"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
 	if messageType == websocket.TextMessage {
 		var msg map[string]interface{}
 		var newPlayer Manage.Player
-
 		if err := json.Unmarshal(messageByte, &msg); err != nil {
 			fmt.Println("Error parsing message:", err)
 			return
@@ -185,9 +191,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			newPlayer.ID = playerData["id"].(string)
 			newPlayer.Name = playerData["name"].(string)
-			//newPlayer.Pending = playerData["pending"].(bool)
-			//newPlayer.Hearts = 3
-			//newPlayer.Shield = 0
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -206,8 +209,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				"type":  ResponseJoinSuccess,
 				"lobby": lobby,
 			}
-
-			//sendResponse(conn, ResponseJoinSuccess, lobby)
 
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
@@ -233,6 +234,38 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			}
 
 			sendResponse(conn, ResponseFindSuccess, response)
+		case RequestRandom:
+			fmt.Println("Request Bomb")
+			heightFloat, ok := msg["height"].(float64)
+			height := int(heightFloat)
+			widthFloat, ok := msg["width"].(float64)
+			width := int(widthFloat)
+			bombCountFloat, ok := msg["bomb"].(float64)
+			bombCount := int(bombCountFloat)
+			ladderCountFloat, ok := msg["ladder"].(float64)
+			ladderCount := int(ladderCountFloat)
+			if !ok {
+				sendResponse(conn, ResponseRandomError, "Invalid Information")
+				return
+			}
+			ladder := Game.RandomLadder(width, height, ladderCount)
+			bomb := Game.RandomBomb(width, height, bombCount)
+
+			response := map[string]interface{}{
+				"type":   ResponseRandomSuccess,
+				"bomb":   bomb,
+				"ladder": ladder,
+			}
+
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				fmt.Println("Error marshaling response:", err)
+				return
+			}
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
 		case RequestBoardUpdate:
 			fmt.Println("Request Board Update")
 			var gameStateData Manage.Gamestate
@@ -268,23 +301,13 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				return
 			}
 			y := int(yFloat)
-
-			HandlePlayerAction(playerIndex, x, y, gameState, conn, s)
-		case RollDice:
-			response := map[string]interface{}{
-				"type":        RollDiceResponse,
-				"Dice Number": msg["Dice Number"],
-			}
-
-			responseBytes, err := json.Marshal(response)
-			if err != nil {
-				fmt.Println("Error marshaling response:", err)
+			tileTypeFloat, ok := msg["tile_type"].(float64)
+			if !ok {
+				sendResponse(conn, PlayerActionError, "Invalid tile type error")
 				return
 			}
-
-			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
-			message := message{s.room, responseBytes}
-			H.broadcast <- message
+			tileType := int(tileTypeFloat)
+			HandlePlayerAction(playerIndex, x, y, tileType, gameState, conn, s)
 		case RequestStartGame:
 			fmt.Println("Request Start Game")
 			response := map[string]interface{}{
@@ -334,6 +357,33 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
 			H.broadcast <- message
+		case RequestEndGame:
+			fmt.Println("Request End Game")
+			playerData, ok := msg["player"].(map[string]interface{})
+			if !ok {
+				sendResponse(conn, ResponseEndGameError, "Invalid player information")
+				return
+			}
+			newPlayer.ID = playerData["id"].(string)
+			newPlayer.Name = playerData["name"].(string)
+
+			fmt.Println(newPlayer.ID)
+
+			response := map[string]interface{}{
+				"type":    ResponseEndGameSuccess,
+				"message": "Game Ending",
+				"player":  playerData,
+			}
+
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				sendResponse(conn, ResponseNextPlayerError, "Error Change Player: "+err.Error())
+				return
+			}
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
 		}
 	}
 }
@@ -356,9 +406,8 @@ func sendResponse(conn *Connection, responseType string, data interface{}) {
 	conn.send <- responseBytes
 }
 
-func HandlePlayerAction(playerIndex int, x, y int, gameState Manage.Gamestate, conn *Connection, s *Subscription) {
-	player := gameState.Players[playerIndex]
-
+func HandlePlayerAction(playerIndex, x, y, tile int, gameState Manage.Gamestate, conn *Connection, s *Subscription) {
+	//player := gameState.Players[playerIndex]
 	if x < 0 || x >= len(gameState.Board) || y < 0 || y >= len(gameState.Board[0]) {
 		fmt.Println("Invalid click: out of bounds")
 		return
@@ -368,63 +417,20 @@ func HandlePlayerAction(playerIndex int, x, y int, gameState Manage.Gamestate, c
 		fmt.Println("Invalid click: position blocked")
 		return
 	}
-
-	item := gameState.Board[x][y].Item
-	switch item.Type {
-	case "Heart":
-		sendActionBroadcast(conn, s, playerIndex, x, y, "picked up a heart item")
-		if player.Hearts < 3 {
-			player.Hearts++
-			fmt.Println("Player picked up a heart item")
-
-			sendActionBroadcast(conn, s, playerIndex, x, y, "heart++")
-		} else {
-			fmt.Println("Player's hearts are already at maximum")
-
-			sendActionBroadcast(conn, s, playerIndex, x, y, "max")
-		}
-	case "Shield":
-		sendActionBroadcast(conn, s, playerIndex, x, y, "picked up a shield item")
-		if player.Hearts < 1 {
-			player.Hearts++
-			fmt.Println("Player picked up a shield item")
-
-			sendActionBroadcast(conn, s, playerIndex, x, y, "shield++")
-		} else {
-			fmt.Println("Player already has a shield")
-
-			sendActionBroadcast(conn, s, playerIndex, x, y, "max")
-		}
-	case "Bomb":
-		sendActionBroadcast(conn, s, playerIndex, x, y, "encountered a bomb")
-		if player.Shield > 0 {
-			player.Shield--
-
-			sendActionBroadcast(conn, s, playerIndex, x, y, "shield--")
-		} else {
-			player.Hearts--
-
-			sendActionBroadcast(conn, s, playerIndex, x, y, "heart--")
-		}
-		fmt.Println("Player encountered a bomb")
-
-	default:
-		fmt.Println("Player clicked an empty cell")
-
-		sendActionBroadcast(conn, s, playerIndex, x, y, "clicked an empty cell")
-	}
-
-	fmt.Printf("Player %s clicked to (%d, %d). Hearts: %d, Shield: %d\n", player.ID, x, y, player.Hearts, player.Shield)
+	fmt.Println("Player clicked an empty cell")
+	sendActionBroadcast(conn, s, playerIndex, x, y, tile, "clicked an empty cell")
+	fmt.Println("Player clicked to (%d, %d).", x, y)
 
 }
 
-func sendActionBroadcast(conn *Connection, s *Subscription, playerIndex int, x, y int, action string) {
+func sendActionBroadcast(conn *Connection, s *Subscription, playerIndex, x, y, tile int, action string) {
 	response := map[string]interface{}{
 		"type":        PlayerActionSuccess,
 		"action":      action,
 		"playerIndex": playerIndex,
 		"x":           x,
 		"y":           y,
+		"tile_type":   tile,
 	}
 
 	responseBytes, err := json.Marshal(response)
