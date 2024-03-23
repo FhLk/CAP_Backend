@@ -12,5 +12,5 @@ type Block struct {
 }
 
 type Item struct {
-	Type string `json:"type"`
+	Type int `json:"type"`
 }
