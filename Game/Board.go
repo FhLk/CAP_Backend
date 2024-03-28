@@ -1,6 +1,7 @@
 package Game
 
 import (
+	"fmt"
 	"math/rand"
 )
 
@@ -22,11 +23,13 @@ func RandomBomb(w, h, bombCount int) []Tile {
 	for i, _ := range bombRange {
 		bombRange[i] = i
 	}
+	rand.Shuffle(len(bombRange), func(i, j int) {
+		bombRange[i], bombRange[j] = bombRange[j], bombRange[i]
+	})
 	bomb := make([]Tile, bombCount) // สร้าง array 5 ช่อง เก็บค่า int เริ่มต้นด้วยค่า 0
 	// สร้าง array
 	for i := 0; i < len(bomb); i++ {
-		randomIndex := rand.Intn(len(bombRange))
-		bombRange = append(bombRange[:randomIndex], bombRange[randomIndex+1:]...)
+		randomIndex := bombRange[i]
 		x := randomIndex / 10
 		y := randomIndex % 10
 		bomb[i].X = x
@@ -38,6 +41,7 @@ func RandomBomb(w, h, bombCount int) []Tile {
 			bomb[i].Index = (x * 10) + y
 		}
 	}
+	fmt.Println(bomb)
 	return bomb
 }
 
@@ -46,16 +50,19 @@ func RandomLadder(w, h, ladderCount int) [][]Tile {
 	for i, _ := range ladderRange {
 		ladderRange[i] = i
 	}
+
+	rand.Shuffle(len(ladderRange), func(i, j int) {
+		ladderRange[i], ladderRange[j] = ladderRange[j], ladderRange[i]
+	})
+
 	ladder := make([][]Tile, ladderCount)
 	for i := 0; i < len(ladder); i++ {
 		ladder[i] = make([]Tile, 2)
 	}
 
-	// สร้าง array
 	for i := 0; i < len(ladder); i++ {
 		for j := 0; j < len(ladder[i]); j++ {
-			randomIndex := rand.Intn(len(ladderRange))
-			ladderRange = append(ladderRange[:randomIndex], ladderRange[randomIndex+1:]...)
+			randomIndex := ladderRange[i*2+j] // สุ่มจาก ladderRange ที่สับแล้ว
 			x := randomIndex / 10
 			y := randomIndex % 10
 			ladder[i][j].X = x
@@ -68,6 +75,7 @@ func RandomLadder(w, h, ladderCount int) [][]Tile {
 			}
 		}
 	}
+	fmt.Println(ladder)
 	return ladder
 }
 

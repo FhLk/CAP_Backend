@@ -7,7 +7,6 @@ import (
 )
 
 func main() {
-	//_ = Game.RandomBomb(10, 10, 7)
 	hub := Client.H
 	go hub.Run()
 
