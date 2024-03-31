@@ -46,9 +46,10 @@ func RandomBomb(w, h, bombCount int) []Tile {
 }
 
 func RandomLadder(w, h, ladderCount int) [][]Tile {
-	ladderRange := make([]int, w*h)
+	ladderRange := make([]int, (w*h)-2)
 	for i, _ := range ladderRange {
-		ladderRange[i] = i
+		ladderRange[i] = i + 1
+		fmt.Printf("Index: %d, Value: %d\n", i, ladderRange[i])
 	}
 
 	rand.Shuffle(len(ladderRange), func(i, j int) {

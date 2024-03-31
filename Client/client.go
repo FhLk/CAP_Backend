@@ -17,7 +17,7 @@ const (
 	writeWait      = 10 * time.Second
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 100000
+	maxMessageSize = 1000000
 )
 
 var (
@@ -367,8 +367,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			newPlayer.ID = playerData["id"].(string)
 			newPlayer.Name = playerData["name"].(string)
 
-			fmt.Println(newPlayer.ID)
-
 			response := map[string]interface{}{
 				"type":    ResponseEndGameSuccess,
 				"message": "Game Ending",
@@ -419,7 +417,7 @@ func HandlePlayerAction(playerIndex, x, y, tile int, gameState Manage.Gamestate,
 	}
 	fmt.Println("Player clicked an empty cell")
 	sendActionBroadcast(conn, s, playerIndex, x, y, tile, "clicked an empty cell")
-	fmt.Println("Player clicked to (%d, %d).", x, y)
+	fmt.Println("Player clicked to (%d\n, %d\n).", x, y)
 
 }
 
