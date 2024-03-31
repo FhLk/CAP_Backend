@@ -97,7 +97,7 @@ func ServeWsLobby(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	queryValues := r.URL.Query()
 	lobbyId := queryValues.Get("lobbyId")
-	fmt.Println(lobbyId + "wow")
+	fmt.Println(lobbyId)
 	if lobbyId == "" {
 		log.Println(err)
 	} else if err != nil {
@@ -417,7 +417,7 @@ func HandlePlayerAction(playerIndex, x, y, tile int, gameState Manage.Gamestate,
 	}
 	fmt.Println("Player clicked an empty cell")
 	sendActionBroadcast(conn, s, playerIndex, x, y, tile, "clicked an empty cell")
-	fmt.Printf("Player clicked to (%d, %d\n)", x, y)
+	fmt.Printf("Player clicked to (%d, %d)", x, y)
 
 }
 
