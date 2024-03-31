@@ -417,7 +417,7 @@ func HandlePlayerAction(playerIndex, x, y, tile int, gameState Manage.Gamestate,
 	}
 	fmt.Println("Player clicked an empty cell")
 	sendActionBroadcast(conn, s, playerIndex, x, y, tile, "clicked an empty cell")
-	fmt.Println("Player clicked to (%d\n, %d\n).", x, y)
+	fmt.Printf("Player clicked to (%d, %d\n)", x, y)
 
 }
 
