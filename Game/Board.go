@@ -6,9 +6,9 @@ import (
 )
 
 type Board struct {
-	Hex    [][]Tile `json:"hex"`
-	Height int      `json:"height"`
-	Width  int      `json:"width"`
+	//Hex    [][]Tile `json:"hex"`
+	Height int `json:"height"`
+	Width  int `json:"width"`
 }
 
 type Tile struct {

@@ -77,7 +77,7 @@ func FindLobby(lobbyID string) (*Lobby, error) {
 	lobby, exists := ActiveLobbies[lobbyID]
 	if !exists {
 		fmt.Println("Lobby", lobbyID, "is not found")
-		return nil, nil
+		return nil, errors.New("Lobby is not found")
 	}
 
 	return lobby, nil

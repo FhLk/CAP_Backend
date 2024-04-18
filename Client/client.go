@@ -56,10 +56,21 @@ func (s *Subscription) readPump() {
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
-			}
-			break
-		}
+				fmt.Println("Player Disconnect")
+				response := map[string]interface{}{
+					"type":    "-2",
+					"message": "Player Disconnect",
+				}
+				responseBytes, err := json.Marshal(response)
+				if err != nil {
+					return
+				}
 
+				responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+				message := message{s.room, responseBytes}
+				H.broadcast <- message
+			}
+		}
 		HandleLobby(c, messageType, msg, s)
 	}
 }
@@ -112,7 +123,6 @@ func ServeWsLobby(w http.ResponseWriter, r *http.Request) {
 }
 
 const (
-	//In Lobby
 	RequestCreate              = "00"
 	ResponseCreateSuccess      = "01"
 	ResponseCreateError        = "02"
@@ -125,6 +135,9 @@ const (
 	PlayerAction               = "30"
 	PlayerActionSuccess        = "31"
 	PlayerActionError          = "32"
+	RequestSetting             = "40"
+	ResponseSettingSuccess     = "41"
+	ResponseSettingError       = "42"
 	RequestBoardUpdate         = "50"
 	ResponseBoardUpdateSuccess = "51"
 	ResponseBoardUpdateError   = "52"
@@ -163,9 +176,6 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			newPlayer.ID = playerData["id"].(string)
 			newPlayer.Name = playerData["name"].(string)
-			//newPlayer.Pending = playerData["pending"].(bool)
-			//newPlayer.Hearts = 3
-			//newPlayer.Shield = 0
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
@@ -234,6 +244,36 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			}
 
 			sendResponse(conn, ResponseFindSuccess, response)
+		case RequestSetting:
+			fmt.Println("Request Setting")
+			height, ok := msg["height"].(float64)
+			width, ok := msg["width"].(float64)
+			bomb, ok := msg["bomb"].(float64)
+			ladder, ok := msg["ladder"].(float64)
+			player, ok := msg["players"].(float64)
+			if !ok {
+				sendResponse(conn, ResponseSettingError, "Invalid information")
+				return
+			}
+
+			response := map[string]interface{}{
+				"type":    ResponseSettingSuccess,
+				"height":  height,
+				"width":   width,
+				"bomb":    bomb,
+				"ladder":  ladder,
+				"players": player,
+			}
+
+			fmt.Println(response)
+
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				fmt.Println("Error marshaling response:", err)
+				return
+			}
+			conn.send <- responseBytes
+
 		case RequestRandom:
 			fmt.Println("Request Bomb")
 			heightFloat, ok := msg["height"].(float64)
