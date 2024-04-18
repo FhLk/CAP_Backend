@@ -70,7 +70,9 @@ func (s *Subscription) readPump() {
 				message := message{s.room, responseBytes}
 				H.broadcast <- message
 			}
+			break
 		}
+
 		HandleLobby(c, messageType, msg, s)
 	}
 }
@@ -153,6 +155,7 @@ const (
 	RequestRandom              = "90"
 	ResponseRandomSuccess      = "91"
 	ResponseRandomError        = "92"
+	Disconnect                 = "-1"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
@@ -416,6 +419,20 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				sendResponse(conn, ResponseNextPlayerError, "Error Change Player: "+err.Error())
+				return
+			}
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
+		case Disconnect:
+			fmt.Println("Player Disconnect")
+			response := map[string]interface{}{
+				"type":    "-2",
+				"message": "Player Disconnect",
+			}
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
 				return
 			}
 
