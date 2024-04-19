@@ -57,6 +57,7 @@ func (s *Subscription) readPump() {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
 				fmt.Println("Player Disconnect")
+				//Manage.DeleteLobby()
 				response := map[string]interface{}{
 					"type":    "-2",
 					"message": "Player Disconnect",
@@ -156,6 +157,9 @@ const (
 	ResponseRandomSuccess      = "91"
 	ResponseRandomError        = "92"
 	Disconnect                 = "-1"
+	RequestLeave               = "-20"
+	ResponseLeaveSuccess       = "-21"
+	ResponseLeaveError         = "-22"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
@@ -170,9 +174,10 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 		checkType := msg["type"].(string)
 		switch checkType {
 		case RequestCreate:
-			fmt.Println("Request Create")
+			fmt.Println("Request Create Lobby")
 			playerData, ok := msg["player"].(map[string]interface{})
 			if !ok {
+				fmt.Println(false)
 				sendResponse(conn, ResponseCreateError, "Invalid player information")
 				return
 			}
@@ -182,6 +187,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
+				fmt.Println(false)
 				sendResponse(conn, ResponseCreateError, "Invalid lobbyID")
 				return
 			}
@@ -189,15 +195,18 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			lobby, err := Manage.CreateLobby(newPlayer, lobbyID)
 
 			if err != nil {
+				fmt.Println(false)
 				sendResponse(conn, ResponseCreateError, "Error creating lobby: "+err.Error())
 				return
 			}
+			fmt.Println(true)
 
 			sendResponse(conn, ResponseCreateSuccess, lobby)
 		case RequestJoin:
 			fmt.Println("Request Join")
 			playerData, ok := msg["player"].(map[string]interface{})
 			if !ok {
+				fmt.Println(false)
 				sendResponse(conn, ResponseJoinError, "Invalid player information")
 				return
 			}
@@ -207,6 +216,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
+				fmt.Println(false)
 				sendResponse(conn, ResponseJoinError, "Invalid lobbyID")
 				return
 			}
@@ -214,6 +224,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			lobby, err := Manage.JoinLobby(newPlayer, lobbyID)
 
 			if err != nil {
+				fmt.Println(false)
 				sendResponse(conn, ResponseJoinError, "Error joining lobby: "+err.Error())
 				return
 			}
@@ -225,15 +236,17 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
+				fmt.Println(false)
 				fmt.Println("Error marshaling response:", err)
 				return
 			}
+			fmt.Println(true)
 
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
 			H.broadcast <- message
 		case RequestFind:
-			fmt.Println("Request Find")
+			fmt.Println("Request Find Lobby")
 			lobbyID, ok := msg["lobbyId"].(string)
 			if !ok {
 				sendResponse(conn, ResponseFindError, "Invalid lobbyID")
@@ -275,6 +288,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				fmt.Println("Error marshaling response:", err)
 				return
 			}
+			fmt.Println(true)
 			conn.send <- responseBytes
 
 		case RequestRandom:
@@ -306,9 +320,11 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				return
 			}
 
+			fmt.Println(true)
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
 			H.broadcast <- message
+
 		case RequestBoardUpdate:
 			fmt.Println("Request Board Update")
 			var gameStateData Manage.Gamestate
@@ -320,7 +336,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			gameState.Board = gameStateData.Board
 			gameState.Round = gameStateData.Round
 			gameState.Players = gameStateData.Players
-
+			fmt.Println(true)
 			sendResponse(conn, ResponseBoardUpdateSuccess, gameState)
 		case PlayerAction:
 			fmt.Println("Player Action")
@@ -350,6 +366,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				return
 			}
 			tileType := int(tileTypeFloat)
+			fmt.Println(true)
 			HandlePlayerAction(playerIndex, x, y, tileType, gameState, conn, s)
 		case RequestStartGame:
 			fmt.Println("Request Start Game")
@@ -364,6 +381,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				sendResponse(conn, ResponseStartGameError, "Error Start Game Lobby: "+err.Error())
 				return
 			}
+			fmt.Println(true)
 
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
@@ -396,6 +414,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				sendResponse(conn, ResponseNextPlayerError, "Error Change Player: "+err.Error())
 				return
 			}
+			fmt.Println(true)
 
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
@@ -421,6 +440,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				sendResponse(conn, ResponseNextPlayerError, "Error Change Player: "+err.Error())
 				return
 			}
+			fmt.Println(true)
 
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
@@ -435,10 +455,51 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			if err != nil {
 				return
 			}
+			fmt.Println(true)
 
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
 			H.broadcast <- message
+		case RequestLeave:
+			fmt.Println("Request Leave Lobby")
+			playerData, ok := msg["player"].(map[string]interface{})
+			if !ok {
+				sendResponse(conn, ResponseLeaveError, "Invalid player information")
+				return
+			}
+
+			newPlayer.ID = playerData["id"].(string)
+			newPlayer.Name = playerData["name"].(string)
+
+			lobbyID, ok := msg["lobbyId"].(string)
+			if !ok {
+				sendResponse(conn, ResponseLeaveError, "Invalid lobbyID")
+				return
+			}
+
+			lobby, err := Manage.LeaveLobby(newPlayer, lobbyID)
+
+			if err != nil {
+				sendResponse(conn, ResponseLeaveError, "Error joining lobby: "+err.Error())
+				return
+			}
+
+			response := map[string]interface{}{
+				"type":  ResponseLeaveSuccess,
+				"lobby": lobby,
+			}
+
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				fmt.Println("Error marshaling response:", err)
+				return
+			}
+			fmt.Println(true)
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
+
 		}
 	}
 }

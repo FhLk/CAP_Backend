@@ -82,3 +82,43 @@ func FindLobby(lobbyID string) (*Lobby, error) {
 
 	return lobby, nil
 }
+
+func LeaveLobby(newPlayer Player, lobbyID string) (*Lobby, error) {
+	lobby, exists := ActiveLobbies[lobbyID]
+	if !exists {
+		fmt.Println("Lobby", lobbyID, "is not found")
+		return nil, errors.New("Lobby not found")
+	}
+	playerIndex := -1
+	for i, existingPlayer := range lobby.Players {
+		if existingPlayer.ID == newPlayer.ID {
+			playerIndex = i
+			break
+		}
+	}
+
+	if playerIndex == -1 {
+		fmt.Println("Player", newPlayer.ID, "is not in the lobby")
+		return nil, errors.New("Player is not in the lobby")
+	}
+
+	// Remove the player from the slice using slice deletion
+	lobby.Players = append(lobby.Players[:playerIndex], lobby.Players[playerIndex+1:]...)
+
+	return lobby, nil
+}
+
+func DeleteLobby(lobbyID string) error {
+	lobbyMutex.Lock()
+	defer lobbyMutex.Unlock()
+
+	_, exists := ActiveLobbies[lobbyID]
+	if !exists {
+		fmt.Println("Lobby", lobbyID, "is not found")
+		return errors.New("Lobby not found")
+	}
+
+	delete(ActiveLobbies, lobbyID)
+
+	return nil
+}
