@@ -53,6 +53,7 @@ func (s *Subscription) readPump() {
 	c.ws.SetPongHandler(func(string) error { c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		messageType, msg, err := c.ws.ReadMessage()
+		//_, msg, err := c.ws.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
@@ -73,7 +74,6 @@ func (s *Subscription) readPump() {
 			}
 			break
 		}
-
 		HandleLobby(c, messageType, msg, s)
 	}
 }
@@ -160,6 +160,9 @@ const (
 	RequestLeave               = "-20"
 	ResponseLeaveSuccess       = "-21"
 	ResponseLeaveError         = "-22"
+	RequestChat                = "-30"
+	ResponseChatSuccess        = "-31"
+	ResponseChatError          = "-32"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
@@ -499,7 +502,28 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
 			message := message{s.room, responseBytes}
 			H.broadcast <- message
+		case RequestChat:
+			fmt.Println("Request Chat")
+			ms, ok := msg["messages"].(string)
+			if !ok {
+				sendResponse(conn, ResponseChatError, "Invalid information")
+				return
+			}
+			response := map[string]interface{}{
+				"type":     ResponseChatSuccess,
+				"messages": ms,
+			}
 
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				fmt.Println("Error marshaling response:", err)
+				return
+			}
+			fmt.Println(true)
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
 		}
 	}
 }
