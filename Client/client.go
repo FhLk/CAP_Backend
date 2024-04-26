@@ -163,6 +163,9 @@ const (
 	RequestChat                = "-30"
 	ResponseChatSuccess        = "-31"
 	ResponseChatError          = "-32"
+	RequestRollDice            = "-40"
+	ResponseRollDiceSuccess    = "-41"
+	ResponseRollDiceError      = "-42"
 )
 
 func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subscription) {
@@ -514,6 +517,25 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 				"messages": ms,
 			}
 
+			responseBytes, err := json.Marshal(response)
+			if err != nil {
+				fmt.Println("Error marshaling response:", err)
+				return
+			}
+			fmt.Println(true)
+
+			responseBytes = bytes.TrimSpace(bytes.Replace(responseBytes, newline, space, -1))
+			message := message{s.room, responseBytes}
+			H.broadcast <- message
+		case RequestRollDice:
+			fmt.Println("Request Roll Dice")
+			response := map[string]interface{}{
+				"type": ResponseRollDiceSuccess,
+				"time": true,
+				"dice": msg["Dice Number"], // Use the received dice number from the message
+			}
+
+			// Marshal the response data
 			responseBytes, err := json.Marshal(response)
 			if err != nil {
 				fmt.Println("Error marshaling response:", err)
