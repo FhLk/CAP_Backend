@@ -532,7 +532,7 @@ func HandleLobby(conn *Connection, messageType int, messageByte []byte, s *Subsc
 			response := map[string]interface{}{
 				"type": ResponseRollDiceSuccess,
 				"time": true,
-				"dice": msg["Dice Number"], // Use the received dice number from the message
+				"dice": int(msg["dice"].(float64)), // Use the received dice number from the message
 			}
 
 			// Marshal the response data
